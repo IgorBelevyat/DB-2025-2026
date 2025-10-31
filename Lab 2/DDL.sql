@@ -1,4 +1,4 @@
--- type enums
+-- enums
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'attribute_type') THEN
@@ -6,7 +6,7 @@ BEGIN
   END IF;
 END$$;
 
--- Категорії
+-- Categories 
 CREATE TABLE IF NOT EXISTS categories (
   category_id        serial PRIMARY KEY,
   name               varchar(120) NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS categories (
   CONSTRAINT uq_categories_parent_name UNIQUE (parent_category_id, name)
 );
 
--- Користувачі
+-- Users
 CREATE TABLE IF NOT EXISTS "user" (
   user_id    serial PRIMARY KEY,
   email      varchar(255) NOT NULL UNIQUE,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS "user" (
   updated_at timestamp NOT NULL DEFAULT now()
 );
 
--- Слайди банера
+-- Banner Slides
 CREATE TABLE IF NOT EXISTS banner_slide (
   bannerSlide_id serial PRIMARY KEY,
   title          varchar(255),
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS banner_slide (
   updated_at     timestamp    NOT NULL DEFAULT now()
 );
 
--- Атрибути
+-- Attributes
 CREATE TABLE IF NOT EXISTS attribute (
   attribute_id  serial PRIMARY KEY,
   name          varchar(120) NOT NULL UNIQUE,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS attribute (
   updated_at    timestamp NOT NULL DEFAULT now()
 );
 
--- Довідник значень для SELECT-атрибутів
+-- For SELECT attributes 
 CREATE TABLE IF NOT EXISTS attribute_value (
   attribute_value_id serial PRIMARY KEY,
   attribute_id       integer NOT NULL REFERENCES attribute(attribute_id) ON DELETE CASCADE,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS attribute_value (
   CONSTRAINT uq_attrvalue UNIQUE (attribute_id, value)
 );
 
--- Атрибути, дозволені в категорії
+-- Category attributes
 CREATE TABLE IF NOT EXISTS category_attribute (
   category_attribute_id serial PRIMARY KEY,
   category_id           integer NOT NULL REFERENCES categories(category_id) ON DELETE CASCADE,
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS category_attribute (
   CONSTRAINT uq_category_attribute UNIQUE (category_id, attribute_id)
 );
 
--- Зображення продукту
+-- Product image
 CREATE TABLE IF NOT EXISTS product_image (
   product_image_id serial PRIMARY KEY,
   product_id       integer NOT NULL,
@@ -93,7 +93,6 @@ CREATE TABLE IF NOT EXISTS product_image (
   )
 );
 
--- Одне головне фото на продукт (частковий унікальний індекс)
 CREATE UNIQUE INDEX IF NOT EXISTS uq_product_image_main
   ON product_image(product_id)
   WHERE is_main;
@@ -101,32 +100,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_product_image_main
 CREATE INDEX IF NOT EXISTS idx_product_image_product
   ON product_image(product_id);
 
--- Продукт
+-- Product
 CREATE TABLE IF NOT EXISTS product (
-  product_id   serial PRIMARY KEY,
-  category_id  integer NOT NULL REFERENCES categories(category_id) ON DELETE RESTRICT,
-  title        varchar(255) NOT NULL,
-  description  text,
-  image        varchar(512),
-  price        numeric(12,2) CHECK (price IS NULL OR price >= 0),
-  availability integer      NOT NULL DEFAULT 0 CHECK (availability >= 0),
-  view_count   integer      NOT NULL DEFAULT 0 CHECK (view_count >= 0),
-  mileage      integer      CHECK (mileage IS NULL OR mileage >= 0),
-  transmission varchar(50),
-  wheelbase    integer      CHECK (wheelbase IS NULL OR wheelbase > 0),
-  fuel_type    varchar(50),
-  created_at   timestamp    NOT NULL DEFAULT now(),
-  updated_at   timestamp    NOT NULL DEFAULT now()
+  product_id     serial PRIMARY KEY,
+  category_id    integer NOT NULL REFERENCES categories(category_id) ON DELETE RESTRICT,
+  main_image_id  integer NULL,
+  title          varchar(255) NOT NULL,
+  description    text,
+  price          numeric(12,2) CHECK (price IS NULL OR price >= 0),
+  availability   integer      NOT NULL DEFAULT 0 CHECK (availability >= 0),
+  view_count     integer      NOT NULL DEFAULT 0 CHECK (view_count >= 0),
+  mileage        integer      CHECK (mileage IS NULL OR mileage >= 0),
+  transmission   varchar(50),
+  wheelbase      integer      CHECK (wheelbase IS NULL OR wheelbase > 0),
+  fuel_type      varchar(50),
+  created_at     timestamp    NOT NULL DEFAULT now(),
+  updated_at     timestamp    NOT NULL DEFAULT now(),
+
+  CONSTRAINT fk_product_main_image
+    FOREIGN KEY (product_id, main_image_id)
+    REFERENCES product_image(product_id, product_image_id)
+    ON DELETE SET NULL
+    DEFERRABLE INITIALLY DEFERRED
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_category ON product(category_id);
 
--- Рівно одне "головне" фото на продукт (partial unique index)
-CREATE UNIQUE INDEX IF NOT EXISTS uq_product_image_main
-  ON product_image(product_id)
-  WHERE is_main;
-
--- Значення атрибутів продукту
+-- Product attributies
 CREATE TABLE IF NOT EXISTS product_attribute (
   product_attribute_id serial PRIMARY KEY,
   product_id           integer NOT NULL REFERENCES product(product_id)   ON DELETE CASCADE,
